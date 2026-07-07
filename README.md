@@ -4,6 +4,8 @@ A multi-agent debate system: several LLMs answer a question independently,
 cross-examine each other's answers **anonymously**, and a **Chief Justice**
 model synthesizes a final verdict. Runs on NVIDIA NIM's free OpenAI-compatible
 endpoints.
+# LIVE DEMO 
+[Screencast From 2026-07-07 13-07-48.webm](https://github.com/user-attachments/assets/59a55c1e-e410-4797-8437-ea9d8d865aa0)
 
 ## Architecture
 
