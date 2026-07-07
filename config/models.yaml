@@ -1,0 +1,50 @@
+# LLM Council model registry.
+# Swap models here without code changes — NIM deprecates models with short notice.
+# role: "council" (debater) or "chief_justice" (synthesizer).
+# The first enabled chief_justice is used; the rest are fallbacks, in order.
+
+base_url: https://integrate.api.nvidia.com/v1
+requests_per_minute: 40   # per model
+
+models:
+  - id: deepseek-ai/deepseek-v4-flash
+    alias: DeepSeek
+    role: council
+    temperature: 0.7
+    max_tokens: 2048
+    enabled: true
+
+  - id: mistralai/mistral-medium-3.5-128b
+    alias: Mistral
+    role: council
+    temperature: 0.7
+    max_tokens: 2048
+    enabled: true
+
+  - id: minimaxai/minimax-m3
+    alias: MiniMax
+    role: council
+    temperature: 0.7
+    max_tokens: 2048
+    enabled: true
+
+  - id: stepfun-ai/step-3.7-flash
+    alias: StepFun
+    role: council
+    temperature: 0.7
+    max_tokens: 2048
+    enabled: true
+
+  - id: nvidia/nemotron-3-ultra-550b-a55b
+    alias: Chief Justice
+    role: chief_justice
+    temperature: 0.3
+    max_tokens: 3072
+    enabled: true
+
+  - id: moonshotai/kimi-k2.6
+    alias: Chief Justice (fallback)
+    role: chief_justice
+    temperature: 0.3
+    max_tokens: 3072
+    enabled: true
