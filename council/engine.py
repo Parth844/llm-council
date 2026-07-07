@@ -37,6 +37,7 @@ class DebateEvent(BaseModel):
     alias: str | None = None
     model_id: str | None = None  # kept in traces; the UI shows only aliases
     text: str | None = None
+    prompt: str | None = None  # user prompt sent to the model (trace/replay)
     final_answer: str | None = None
     latency_s: float | None = None
     prompt_tokens: int | None = None
@@ -191,6 +192,7 @@ class DebateEngine:
                     alias=model.alias,
                     model_id=model.id,
                     text=res.text,
+                    prompt=prompts.round1_user(question),
                     latency_s=res.latency_s,
                     prompt_tokens=res.prompt_tokens,
                     completion_tokens=res.completion_tokens,
@@ -227,7 +229,7 @@ class DebateEngine:
 
             async def _critique(
                 model: ModelConfig,
-            ) -> tuple[ModelConfig, ChatResult | Exception]:
+            ) -> tuple[ModelConfig, str, ChatResult | Exception]:
                 peers = {
                     pseudonyms[m.alias]: answers[m.alias]
                     for m in active
@@ -235,13 +237,13 @@ class DebateEngine:
                 }
                 user = prompts.critique_user(question, answers[model.alias], peers)
                 try:
-                    return model, await self._ask(model, prompts.CRITIQUE_SYSTEM, user)
+                    return model, user, await self._ask(model, prompts.CRITIQUE_SYSTEM, user)
                 except ModelUnavailableError as exc:
-                    return model, exc
+                    return model, user, exc
 
             results = await asyncio.gather(*(_critique(m) for m in active))
             still_active: list[ModelConfig] = []
-            for model, res in results:
+            for model, user, res in results:
                 if isinstance(res, Exception):
                     failed.append(model.id)
                     await self._emit(
@@ -266,6 +268,7 @@ class DebateEngine:
                         alias=model.alias,
                         model_id=model.id,
                         text=res.text,
+                        prompt=user,
                         latency_s=res.latency_s,
                         prompt_tokens=res.prompt_tokens,
                         completion_tokens=res.completion_tokens,
@@ -300,6 +303,7 @@ class DebateEngine:
                     alias=justice.alias,
                     model_id=justice.id,
                     text=res.text,
+                    prompt=user,
                     latency_s=res.latency_s,
                     prompt_tokens=res.prompt_tokens,
                     completion_tokens=res.completion_tokens,

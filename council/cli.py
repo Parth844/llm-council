@@ -13,6 +13,7 @@ from rich.rule import Rule
 from council.client import NIMClient
 from council.config import DEFAULT_CONFIG_PATH, load_api_key, load_config
 from council.engine import DebateEngine, DebateEvent
+from council.tracing import TraceLogger
 
 ALIAS_COLORS = ["cyan", "magenta", "green", "yellow", "blue", "red"]
 
@@ -45,7 +46,10 @@ async def run(args: argparse.Namespace) -> int:
         for i, m in enumerate(config.council)
     }
 
+    tracer = TraceLogger()
+
     def on_event(ev: DebateEvent) -> None:
+        tracer.log_event(ev)
         if ev.type == "round_started":
             label = "Independent answers" if ev.round == 1 else "Cross-examination"
             console.print(Rule(f"[bold]Round {ev.round} — {label}[/bold]"))
@@ -71,6 +75,8 @@ async def run(args: argparse.Namespace) -> int:
     )
     try:
         result = await engine.run(args.question, rounds=args.rounds)
+        tracer.save_result(result)
+        console.print(f"[dim]Trace saved: traces/{result.session_id}.json[/dim]")
     finally:
         await client.aclose()
 

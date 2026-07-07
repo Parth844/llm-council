@@ -32,6 +32,9 @@ class FakeClient:
     async def health_check(self, model: str) -> bool:
         return model not in self.broken
 
+    async def aclose(self) -> None:
+        return None
+
 
 @pytest.fixture
 def config() -> CouncilConfig:
