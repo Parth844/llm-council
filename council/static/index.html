@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LLM Council</title>
+<style>
+  :root {
+    --bg: #0f1117; --panel: #181b24; --border: #2a2f3d;
+    --text: #e6e8ee; --dim: #8a91a3; --accent: #6ea8fe;
+    --a: #4cc9f0; --b: #f472b6; --c: #4ade80; --d: #facc15; --e: #a78bfa; --f: #fb7185;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.55 system-ui, -apple-system, sans-serif;
+  }
+  header { padding: 20px 24px 0; }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  h1 .gavel { margin-right: 8px; }
+  .sub { color: var(--dim); margin: 0 0 16px; font-size: 13px; }
+  #ask-form { display: flex; gap: 8px; padding: 0 24px 16px; }
+  #question {
+    flex: 1; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--text); font-size: 15px;
+  }
+  #rounds { width: 64px; text-align: center; background: var(--panel);
+    color: var(--text); border: 1px solid var(--border); border-radius: 8px; }
+  button {
+    padding: 10px 20px; border: 0; border-radius: 8px; background: var(--accent);
+    color: #0b1020; font-weight: 600; cursor: pointer; font-size: 15px;
+  }
+  button:disabled { opacity: .5; cursor: wait; }
+  #status { padding: 0 24px 8px; color: var(--dim); font-size: 13px; min-height: 20px; }
+  #board { display: grid; gap: 12px; padding: 0 24px 24px; align-items: start; }
+  .column { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .column h3 { margin: 0; padding: 10px 14px; font-size: 14px; border-bottom: 1px solid var(--border); }
+  .entry { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  .entry:last-child { border-bottom: 0; }
+  .entry .tag { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); margin-bottom: 6px; }
+  .entry .body { white-space: pre-wrap; word-wrap: break-word; font-size: 13.5px; }
+  .entry.critique { background: rgba(255,255,255,.025); }
+  .entry.failed .body { color: var(--f); }
+  .final-line { margin-top: 8px; padding: 6px 10px; border-radius: 6px;
+    background: rgba(110,168,254,.12); font-weight: 600; font-size: 13px; }
+  .round-sep { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px;
+    color: var(--dim); font-size: 13px; text-transform: uppercase; letter-spacing: .08em; }
+  .round-sep::before, .round-sep::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+  #verdict { grid-column: 1 / -1; border: 1px solid var(--accent); border-radius: 12px;
+    background: linear-gradient(180deg, rgba(110,168,254,.08), transparent); padding: 18px 20px; }
+  #verdict h2 { margin: 0 0 10px; font-size: 17px; display: flex; align-items: center; gap: 10px; }
+  .badge { font-size: 12px; padding: 3px 10px; border-radius: 999px; font-weight: 700; text-transform: uppercase; }
+  .badge.high { background: #14532d; color: #86efac; }
+  .badge.medium { background: #57430a; color: #fde68a; }
+  .badge.low { background: #5c1a25; color: #fda4af; }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--dim);
+    border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="gavel">⚖️</span>LLM Council</h1>
+  <p class="sub">Independent answers → anonymized cross-examination → Chief Justice verdict</p>
+</header>
+<form id="ask-form">
+  <input id="question" placeholder="Ask the council anything…" autocomplete="off" required>
+  <input id="rounds" type="number" min="1" max="5" value="2" title="Total rounds">
+  <button id="go" type="submit">Convene</button>
+</form>
+<div id="status"></div>
+<div id="board"></div>
+
+<script>
+const board = document.getElementById("board");
+const status = document.getElementById("status");
+const form = document.getElementById("ask-form");
+const goBtn = document.getElementById("go");
+const columns = new Map();  // alias -> entries div
+let evtSource = null;
+
+const COLORS = ["--a","--b","--c","--d","--e","--f"];
+
+function setStatus(html) { status.innerHTML = html; }
+
+function ensureColumn(alias) {
+  if (columns.has(alias)) return columns.get(alias);
+  const col = document.createElement("div");
+  col.className = "column";
+  const color = `var(${COLORS[columns.size % COLORS.length]})`;
+  col.innerHTML = `<h3 style="color:${color}">${alias}</h3>`;
+  const entries = document.createElement("div");
+  col.appendChild(entries);
+  board.appendChild(col);
+  columns.set(alias, entries);
+  board.style.gridTemplateColumns = `repeat(${columns.size}, minmax(260px, 1fr))`;
+  return entries;
+}
+
+function esc(s) {
+  const d = document.createElement("div");
+  d.textContent = s || "";
+  return d.innerHTML;
+}
+
+function renderEntry(alias, tag, text, cls) {
+  const entries = ensureColumn(alias);
+  const div = document.createElement("div");
+  div.className = "entry " + (cls || "");
+  const m = (text || "").match(/FINAL ANSWER\s*[:\-]?\s*(.+)\s*$/im);
+  const finalLine = m ? `<div class="final-line">⚑ ${esc(m[1])}</div>` : "";
+  div.innerHTML = `<div class="tag">${esc(tag)}</div><div class="body">${esc(text)}</div>${finalLine}`;
+  entries.appendChild(div);
+}
+
+function renderRoundSep(n) {
+  const sep = document.createElement("div");
+  sep.className = "round-sep";
+  sep.textContent = n === 1 ? `Round 1 · independent answers` : `Round ${n} · cross-examination`;
+  // separators go above the columns visually; append before columns exist for round 1
+  board.appendChild(sep);
+}
+
+function renderVerdict(text) {
+  const card = document.createElement("div");
+  card.id = "verdict";
+  const conf = (text || "").match(/CONFIDENCE\s*[:\-]?\s*\**\s*(high|medium|low)/i);
+  const level = conf ? conf[1].toLowerCase() : null;
+  const badge = level ? `<span class="badge ${level}">${level} confidence</span>` : "";
+  card.innerHTML = `<h2>⚖️ Chief Justice — Verdict ${badge}</h2><div class="body" style="white-space:pre-wrap">${esc(text)}</div>`;
+  board.appendChild(card);
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const question = document.getElementById("question").value.trim();
+  const rounds = parseInt(document.getElementById("rounds").value) || 2;
+  if (!question) return;
+
+  if (evtSource) evtSource.close();
+  board.innerHTML = "";
+  columns.clear();
+  goBtn.disabled = true;
+  setStatus(`<span class="spinner"></span> Convening the council…`);
+
+  let sessionId;
+  try {
+    const resp = await fetch("/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, rounds }),
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    sessionId = (await resp.json()).session_id;
+  } catch (err) {
+    setStatus(`❌ ${esc(err.message)}`);
+    goBtn.disabled = false;
+    return;
+  }
+
+  evtSource = new EventSource(`/stream/${sessionId}`);
+  const on = (type, fn) => evtSource.addEventListener(type, (e) => fn(JSON.parse(e.data)));
+
+  on("round_started", (d) => {
+    renderRoundSep(d.round);
+    setStatus(`<span class="spinner"></span> Round ${d.round} in progress…`);
+  });
+  on("model_answered", (d) => renderEntry(d.alias, `Round ${d.round} · answer · ${d.latency_s?.toFixed(1)}s`, d.text));
+  on("critique", (d) => renderEntry(d.alias, `Round ${d.round} · critique + revision · ${d.latency_s?.toFixed(1)}s`, d.text, "critique"));
+  on("model_failed", (d) => renderEntry(d.alias || "unknown", "failed", d.text, "failed"));
+  on("synthesis", (d) => { renderVerdict(d.text); setStatus("Session " + sessionId + " · verdict delivered"); });
+  on("error", (d) => setStatus(`❌ ${esc(d.text)}`));
+  on("done", () => { evtSource.close(); goBtn.disabled = false; });
+  evtSource.onerror = () => { setStatus("❌ stream disconnected"); evtSource.close(); goBtn.disabled = false; };
+});
+</script>
+</body>
+</html>
