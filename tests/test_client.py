@@ -71,5 +71,23 @@ async def test_non_retryable_status_fails_immediately():
     assert calls["n"] == 1
 
 
+async def test_list_models_fetches_once_and_caches():
+    calls = {"n": 0}
+
+    def handler(req):
+        calls["n"] += 1
+        return httpx.Response(200, json={"data": [{"id": "a/x"}, {"id": "b/y"}]})
+
+    client = make_client(handler)
+    assert await client.list_models() == {"a/x", "b/y"}
+    assert await client.list_models() == {"a/x", "b/y"}
+    assert calls["n"] == 1
+
+
+async def test_list_models_returns_none_on_error():
+    client = make_client(lambda req: httpx.Response(500, text="boom"))
+    assert await client.list_models() is None
+
+
 async def _no_sleep(_seconds: float) -> None:
     return None

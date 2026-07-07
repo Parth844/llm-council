@@ -28,7 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--json", action="store_true", help="Emit the full result as JSON")
     parser.add_argument(
         "--no-health-check", action="store_true",
-        help="Skip startup model probes (saves ~1 request per model)",
+        help="Skip the NIM model-catalog check before the debate",
     )
     return parser
 

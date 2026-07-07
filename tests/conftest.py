@@ -29,8 +29,9 @@ class FakeClient:
             latency_s=0.01,
         )
 
-    async def health_check(self, model: str) -> bool:
-        return model not in self.broken
+    async def list_models(self) -> set[str] | None:
+        known = {"vendor/m-a", "vendor/m-b", "vendor/m-c", "vendor/justice", "vendor/justice-2"}
+        return known - self.broken
 
     async def aclose(self) -> None:
         return None

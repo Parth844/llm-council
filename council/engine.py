@@ -104,12 +104,17 @@ class DebateEngine:
         )
 
     async def _select_alive(self, models: list[ModelConfig]) -> list[ModelConfig]:
+        """Filter to models present in the NIM catalog (one GET /models call).
+
+        If the catalog is unreachable, assume all alive — transient per-model
+        failures are handled (with retries) inside each round anyway.
+        """
         if self.skip_health_check:
             return list(models)
-        checks = await asyncio.gather(
-            *(self.client.health_check(m.id) for m in models)
-        )
-        return [m for m, ok in zip(models, checks) if ok]
+        available = await self.client.list_models()
+        if available is None:
+            return list(models)
+        return [m for m in models if m.id in available]
 
     async def run(
         self, question: str, rounds: int = 2, session_id: str | None = None
@@ -128,7 +133,7 @@ class DebateEngine:
                         session_id=session_id,
                         alias=m.alias,
                         model_id=m.id,
-                        text="failed health check; excluded from council",
+                        text="not in the NIM model catalog; excluded from council",
                     )
                 )
         if len(council) < 2:

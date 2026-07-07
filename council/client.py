@@ -68,6 +68,7 @@ class NIMClient:
         self.base_url = base_url.rstrip("/")
         self.requests_per_minute = requests_per_minute
         self._limiters: dict[str, SlidingWindowRateLimiter] = {}
+        self._models_cache: set[str] | None = None
         self._http = http_client or httpx.AsyncClient(
             timeout=httpx.Timeout(timeout, connect=15.0),
             headers={"Authorization": f"Bearer {api_key}"},
@@ -126,19 +127,20 @@ class NIMClient:
                 await asyncio.sleep(2.0**attempt)  # 1s, 2s, 4s
         raise ModelUnavailableError(f"{model}: failed after {MAX_RETRIES + 1} attempts") from last_error
 
-    async def health_check(self, model: str) -> bool:
-        """Cheap 1-token probe to verify a model id is still served."""
+    async def list_models(self) -> set[str] | None:
+        """Model ids currently served (GET /models), cached for the client's
+        lifetime. Returns None if the catalog can't be fetched — callers
+        should then assume models are alive and let per-round errors handle it."""
+        if self._models_cache is not None:
+            return self._models_cache
         try:
-            await self.chat(
-                model,
-                [{"role": "user", "content": "ping"}],
-                temperature=0.0,
-                max_tokens=1,
-            )
-            return True
-        except ModelUnavailableError as exc:
-            logger.warning("health check failed: %s", exc)
-            return False
+            resp = await self._http.get(f"{self.base_url}/models")
+            resp.raise_for_status()
+            self._models_cache = {m["id"] for m in resp.json()["data"]}
+            return self._models_cache
+        except (httpx.HTTPError, KeyError, TypeError, ValueError) as exc:
+            logger.warning("could not fetch model catalog: %s", exc)
+            return None
 
     async def aclose(self) -> None:
         await self._http.aclose()

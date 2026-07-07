@@ -44,8 +44,8 @@ class CachingClient:
         path.write_text(result.model_dump_json())
         return result
 
-    async def health_check(self, model: str) -> bool:
-        return await self.inner.health_check(model)
+    async def list_models(self) -> set[str] | None:
+        return await self.inner.list_models()
 
     async def aclose(self) -> None:
         await self.inner.aclose()

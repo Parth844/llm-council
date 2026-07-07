@@ -80,15 +80,18 @@ make eval
    answer, points of disagreement, and a confidence level. If the primary
    justice model fails, fallbacks from the registry are tried in order.
 
-Council models are health-checked at startup; failures are logged and the
-debate proceeds with whatever remains (minimum 2 models).
+Before each debate, council ids are validated against NIM's `GET /v1/models`
+catalog (one request, cached per client); missing models are logged and the
+debate proceeds with whatever remains (minimum 2 models). Transient 429/5xx
+errors mid-round are retried with backoff, then the affected model is dropped
+for that debate.
 
 ## Adding / swapping a model
 
 Edit `config/models.yaml` — add an entry with the NIM model `id`, a display
 `alias`, `role` (`council` or `chief_justice`), sampling params, and
 `enabled: true`. No code changes needed. Verify the id exists at
-build.nvidia.com; the startup health check will exclude dead ids gracefully.
+build.nvidia.com; the catalog check will exclude dead ids gracefully.
 
 ## Eval results
 
@@ -116,4 +119,4 @@ Full table (incl. wrong→right / right→wrong flip analysis) lands in
 - Traces contain real model ids (they're local files); the SSE stream and UI
   only expose aliases.
 - Default NIM model ids current as of 2026-07; if NIM deprecates one, the
-  health check drops it and you just edit `models.yaml`.
+  catalog check drops it and you just edit `models.yaml`.
