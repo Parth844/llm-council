@@ -7,3 +7,4 @@ eval/cache/
 eval/results.md
 .pytest_cache/
 *.egg-info/
+traces/*.jsonl
