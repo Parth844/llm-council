@@ -8,28 +8,28 @@ requests_per_minute: 40   # per model
 
 models:
   - id: deepseek-ai/deepseek-v4-flash
-    alias: DeepSeek
+    alias: Analyst A
     role: council
     temperature: 0.7
     max_tokens: 2048
     enabled: true
 
   - id: mistralai/mistral-medium-3.5-128b
-    alias: Mistral
+    alias: Analyst B
     role: council
     temperature: 0.7
     max_tokens: 2048
     enabled: true
 
   - id: minimaxai/minimax-m3
-    alias: MiniMax
+    alias: Analyst C
     role: council
     temperature: 0.7
     max_tokens: 2048
     enabled: true
 
   - id: stepfun-ai/step-3.7-flash
-    alias: StepFun
+    alias: Analyst D
     role: council
     temperature: 0.7
     max_tokens: 2048
