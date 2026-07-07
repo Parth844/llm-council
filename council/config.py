@@ -18,7 +18,11 @@ class ModelConfig(BaseModel):
     alias: str
     role: Literal["council", "chief_justice"]
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    top_p: float | None = Field(default=None, gt=0.0, le=1.0)
     max_tokens: int = Field(default=2048, gt=0)
+    # merged verbatim into the request body — e.g. NIM's
+    # {"chat_template_kwargs": {"thinking": true, "reasoning_effort": "high"}}
+    extra_body: dict[str, object] | None = None
     enabled: bool = True
 
 

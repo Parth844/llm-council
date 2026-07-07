@@ -1,3 +1,5 @@
+import json
+
 import httpx
 import pytest
 
@@ -69,6 +71,34 @@ async def test_non_retryable_status_fails_immediately():
     with pytest.raises(ModelUnavailableError):
         await client.chat("bad/model", [{"role": "user", "content": "q"}])
     assert calls["n"] == 1
+
+
+async def test_top_p_extra_body_sent_and_reasoning_parsed():
+    captured = {}
+
+    def handler(req):
+        captured.update(json.loads(req.content))
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {"message": {"content": "answer", "reasoning_content": "let me think"}}
+                ],
+                "usage": {},
+            },
+        )
+
+    client = make_client(handler)
+    result = await client.chat(
+        "m1",
+        [{"role": "user", "content": "q"}],
+        top_p=0.95,
+        extra_body={"chat_template_kwargs": {"thinking": True}},
+    )
+    assert captured["top_p"] == 0.95
+    assert captured["chat_template_kwargs"] == {"thinking": True}
+    assert result.reasoning == "let me think"
+    assert result.text == "answer"
 
 
 async def test_list_models_fetches_once_and_caches():

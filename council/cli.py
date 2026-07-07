@@ -55,6 +55,14 @@ async def run(args: argparse.Namespace) -> int:
             console.print(Rule(f"[bold]Round {ev.round} — {label}[/bold]"))
         elif ev.type in ("model_answered", "critique"):
             color = colors.get(ev.alias or "", "white")
+            if ev.reasoning:
+                console.print(
+                    Panel(
+                        f"[dim]{ev.reasoning}[/dim]",
+                        title=f"[dim]{ev.alias} · reasoning[/dim]",
+                        border_style="dim",
+                    )
+                )
             console.print(
                 Panel(
                     ev.text or "",

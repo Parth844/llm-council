@@ -23,6 +23,7 @@ MAX_RETRIES = 3
 class ChatResult(BaseModel):
     model: str
     text: str
+    reasoning: str | None = None  # thinking trace, if the model emits one
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
     latency_s: float
@@ -85,6 +86,8 @@ class NIMClient:
         messages: list[dict[str, str]],
         temperature: float = 0.7,
         max_tokens: int = 2048,
+        top_p: float | None = None,
+        extra_body: dict[str, Any] | None = None,
     ) -> ChatResult:
         payload: dict[str, Any] = {
             "model": model,
@@ -93,6 +96,10 @@ class NIMClient:
             "max_tokens": max_tokens,
             "stream": False,
         }
+        if top_p is not None:
+            payload["top_p"] = top_p
+        if extra_body:
+            payload.update(extra_body)
         last_error: Exception | None = None
         for attempt in range(MAX_RETRIES + 1):
             await self._limiter(model).acquire()
@@ -108,9 +115,12 @@ class NIMClient:
                 if resp.status_code == 200:
                     data = resp.json()
                     usage = data.get("usage") or {}
+                    message = data["choices"][0]["message"]
                     return ChatResult(
                         model=model,
-                        text=data["choices"][0]["message"]["content"] or "",
+                        text=message["content"] or "",
+                        reasoning=message.get("reasoning")
+                        or message.get("reasoning_content"),
                         prompt_tokens=usage.get("prompt_tokens"),
                         completion_tokens=usage.get("completion_tokens"),
                         latency_s=time.monotonic() - start,

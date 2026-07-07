@@ -19,7 +19,8 @@ class FakeClient:
         self.broken = broken or set()
         self.calls: list[dict] = []
 
-    async def chat(self, model, messages, temperature=0.7, max_tokens=2048) -> ChatResult:
+    async def chat(self, model, messages, temperature=0.7, max_tokens=2048,
+                   top_p=None, extra_body=None) -> ChatResult:
         self.calls.append({"model": model, "messages": messages})
         if model in self.broken:
             raise ModelUnavailableError(f"{model}: down")

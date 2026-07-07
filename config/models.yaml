@@ -10,8 +10,13 @@ models:
   - id: deepseek-ai/deepseek-v4-flash
     alias: Analyst A
     role: council
-    temperature: 0.7
-    max_tokens: 2048
+    temperature: 1.0
+    top_p: 0.95
+    max_tokens: 16384          # thinking tokens count against this budget
+    extra_body:
+      chat_template_kwargs:
+        thinking: true
+        reasoning_effort: high
     enabled: true
 
   - id: mistralai/mistral-medium-3.5-128b

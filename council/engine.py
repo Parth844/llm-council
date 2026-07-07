@@ -37,6 +37,7 @@ class DebateEvent(BaseModel):
     alias: str | None = None
     model_id: str | None = None  # kept in traces; the UI shows only aliases
     text: str | None = None
+    reasoning: str | None = None  # model's thinking trace, when emitted
     prompt: str | None = None  # user prompt sent to the model (trace/replay)
     final_answer: str | None = None
     latency_s: float | None = None
@@ -101,6 +102,8 @@ class DebateEngine:
             [{"role": "system", "content": system}, {"role": "user", "content": user}],
             temperature=model.temperature,
             max_tokens=model.max_tokens,
+            top_p=model.top_p,
+            extra_body=model.extra_body,
         )
 
     async def _select_alive(self, models: list[ModelConfig]) -> list[ModelConfig]:
@@ -197,6 +200,7 @@ class DebateEngine:
                     alias=model.alias,
                     model_id=model.id,
                     text=res.text,
+                    reasoning=res.reasoning,
                     prompt=prompts.round1_user(question),
                     latency_s=res.latency_s,
                     prompt_tokens=res.prompt_tokens,
@@ -273,6 +277,7 @@ class DebateEngine:
                         alias=model.alias,
                         model_id=model.id,
                         text=res.text,
+                        reasoning=res.reasoning,
                         prompt=user,
                         latency_s=res.latency_s,
                         prompt_tokens=res.prompt_tokens,
@@ -308,6 +313,7 @@ class DebateEngine:
                     alias=justice.alias,
                     model_id=justice.id,
                     text=res.text,
+                    reasoning=res.reasoning,
                     prompt=user,
                     latency_s=res.latency_s,
                     prompt_tokens=res.prompt_tokens,

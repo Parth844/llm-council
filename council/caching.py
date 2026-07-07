@@ -22,23 +22,24 @@ class CachingClient:
         self.hits = 0
         self.misses = 0
 
-    def _key(self, model: str, messages: list[dict[str, str]],
-             temperature: float, max_tokens: int) -> Path:
+    def _key(self, model: str, messages: list[dict[str, str]], **params) -> Path:
         blob = json.dumps(
-            {"model": model, "messages": messages,
-             "temperature": temperature, "max_tokens": max_tokens},
-            sort_keys=True,
+            {"model": model, "messages": messages, **params}, sort_keys=True
         )
         return self.cache_dir / (hashlib.sha256(blob.encode()).hexdigest() + ".json")
 
     async def chat(self, model: str, messages: list[dict[str, str]],
-                   temperature: float = 0.7, max_tokens: int = 2048) -> ChatResult:
-        path = self._key(model, messages, temperature, max_tokens)
+                   temperature: float = 0.7, max_tokens: int = 2048,
+                   top_p: float | None = None,
+                   extra_body: dict | None = None) -> ChatResult:
+        path = self._key(model, messages, temperature=temperature,
+                         max_tokens=max_tokens, top_p=top_p, extra_body=extra_body)
         if path.exists():
             self.hits += 1
             return ChatResult.model_validate_json(path.read_text())
         result = await self.inner.chat(
-            model, messages, temperature=temperature, max_tokens=max_tokens
+            model, messages, temperature=temperature, max_tokens=max_tokens,
+            top_p=top_p, extra_body=extra_body,
         )
         self.misses += 1
         path.write_text(result.model_dump_json())

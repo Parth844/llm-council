@@ -42,6 +42,9 @@
   .entry .body { white-space: pre-wrap; word-wrap: break-word; font-size: 13.5px; }
   .entry.critique { background: rgba(255,255,255,.025); }
   .entry.failed .body { color: var(--f); }
+  .reasoning { margin-bottom: 8px; }
+  .reasoning summary { cursor: pointer; color: var(--dim); font-size: 12px; }
+  .reasoning .body { margin-top: 6px; font-size: 12.5px; }
   .final-line { margin-top: 8px; padding: 6px 10px; border-radius: 6px;
     background: rgba(110,168,254,.12); font-weight: 600; font-size: 13px; }
   .round-sep { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px;
@@ -104,13 +107,16 @@ function esc(s) {
   return d.innerHTML;
 }
 
-function renderEntry(alias, tag, text, cls) {
+function renderEntry(alias, tag, text, cls, reasoning) {
   const entries = ensureColumn(alias);
   const div = document.createElement("div");
   div.className = "entry " + (cls || "");
   const m = (text || "").match(/FINAL ANSWER\s*[:\-]?\s*(.+)\s*$/im);
   const finalLine = m ? `<div class="final-line">⚑ ${esc(m[1])}</div>` : "";
-  div.innerHTML = `<div class="tag">${esc(tag)}</div><div class="body">${esc(text)}</div>${finalLine}`;
+  const thinking = reasoning
+    ? `<details class="reasoning"><summary>💭 reasoning</summary><div class="body" style="color:var(--dim)">${esc(reasoning)}</div></details>`
+    : "";
+  div.innerHTML = `<div class="tag">${esc(tag)}</div>${thinking}<div class="body">${esc(text)}</div>${finalLine}`;
   entries.appendChild(div);
 }
 
@@ -166,8 +172,8 @@ form.addEventListener("submit", async (e) => {
     renderRoundSep(d.round);
     setStatus(`<span class="spinner"></span> Round ${d.round} in progress…`);
   });
-  on("model_answered", (d) => renderEntry(d.alias, `Round ${d.round} · answer · ${d.latency_s?.toFixed(1)}s`, d.text));
-  on("critique", (d) => renderEntry(d.alias, `Round ${d.round} · critique + revision · ${d.latency_s?.toFixed(1)}s`, d.text, "critique"));
+  on("model_answered", (d) => renderEntry(d.alias, `Round ${d.round} · answer · ${d.latency_s?.toFixed(1)}s`, d.text, "", d.reasoning));
+  on("critique", (d) => renderEntry(d.alias, `Round ${d.round} · critique + revision · ${d.latency_s?.toFixed(1)}s`, d.text, "critique", d.reasoning));
   on("model_failed", (d) => renderEntry(d.alias || "unknown", "failed", d.text, "failed"));
   on("synthesis", (d) => { renderVerdict(d.text); setStatus("Session " + sessionId + " · verdict delivered"); });
   on("error", (d) => setStatus(`❌ ${esc(d.text)}`));
